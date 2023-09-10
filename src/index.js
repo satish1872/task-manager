@@ -8,6 +8,11 @@ import taskRouter from './routers/task.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { ObjectId } from 'mongodb';
+import multer from 'multer';
+import mailjet from 'node-mailjet';
+// import { connect } from 'node-mailjet';
+const { connect } = mailjet;
+
 
 const connectionURL = 'mongodb://localhost:27017'; // Replace with your MongoDB connection URL
 const databaseName = 'task-manager-api'; 
@@ -18,6 +23,10 @@ mongoose.connect(`${connectionURL}/${databaseName}`, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });
+
+const errorMiddleware =(req,res,next)=>{
+  throw new Error('from my middleware');
+}
 
 /* 
 when ever we use async keyword infront of some function ,
@@ -63,6 +72,74 @@ app.use((req,res,next)=>{
   else
   next();
 }); */
+
+const upload =multer({
+  dest:'images',
+  limits:{
+    fileSize:1000000
+  },
+  fileFilter(req,file,cb){
+    /* if(!file.originalname.endsWith('.pdf')){
+      return cb(new Error('please upload a PDF file'));
+    } */
+    if(!file.originalname.match(/^.+\.docx$/i)){
+      return cb(new Error('please upload a word document'));
+    }
+
+    // cb(new Error('file must be a image'))
+    cb(undefined,true); // silently accept the upload
+    // cb(undefined,false);// silently reject the upload
+  }
+});
+
+/* app.post("/upload",upload.single('upload'),(req,res)=>{
+  res.send()
+}) */
+
+app.post("/upload",errorMiddleware,(req,res)=>{
+  res.send()
+},(err,req,res,next)=>{
+  res.status(400).send({message:err.message});
+})
+
+
+// Initializing the Mailjet connection
+// https://app.mailjet.com/auth/get_started/developer
+const connectedMailjet = await connect('****************************1234', '****************************abcd');
+
+// Making the request
+const request = connectedMailjet
+  .post("/send", {'version': 'v3.1'})
+  .request({
+    "Messages": [
+      {
+        "From": {
+          "Email": "satish18072000@gmail.com",
+          "Name": "satish1"
+        },
+        "To": [
+          {
+            "Email": "satish18072000@gmail.com",
+            "Name": "satish2"
+          }
+        ],
+        "Subject": "Greetings from Mailjet.",
+        "TextPart": "My first Mailjet email",
+        "HTMLPart": "<h3>Dear passenger 1, welcome to <a href='https://www.mailjet.com/'>Mailjet</a>!</h3><br />May the delivery force be with you!",
+        "CustomID": "AppGettingStartedTest"
+      }
+    ]
+  });
+
+// Handling the response and potential errors
+request
+  .then(result => {
+    console.log(result.body);
+  })
+  .catch(err => {
+    console.log(err.statusCode);
+  });
+
 
 app.use(express.json());
 app.use(userRouter);

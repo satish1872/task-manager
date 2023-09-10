@@ -3,6 +3,8 @@ import User from "../models/user.js";
 import jwt from "jsonwebtoken";
 import auth from "../middleware/auth.js";
 import mongoose from "mongoose";
+import multer from 'multer';
+import sharp from 'sharp';
 
 const SECRET_KEY = "9a8b7c6d5e4f3g2h1iJkLmN0oPqRstUv";
 const userRouter = new express.Router();
@@ -97,6 +99,54 @@ userRouter.get("/users/me", auth, async (req, res) => {
     res.status(500).send(err.message);
   }
 });
+
+// method 1: local upload
+/* const upload= multer({
+  dest:'avatars',
+  limits:{
+    fileSize:1000000
+  },
+  fileFilter(req,file,cb){
+    // if(!file.originalname.endsWith('.pdf')){
+    //   return cb(new Error('please upload a PDF file'));
+    // }
+    if(!file.originalname.match(/.*\.(jpeg|jpg|png)$/i)){
+      return cb(new Error('please upload a image jpeg or jpg or png'));
+    }
+
+    // cb(new Error('file must be a image'))
+    cb(undefined,true); // silently accept the upload
+    // cb(undefined,false);// silently reject the upload
+  }
+})  */
+
+// method 2: upload and save in db
+const upload= multer({
+  limits:{
+    fileSize:1000000
+  },
+  fileFilter(req,file,cb){
+    // if(!file.originalname.endsWith('.pdf')){
+    //   return cb(new Error('please upload a PDF file'));
+    // }
+    if(!file.originalname.match(/.*\.(jpeg|jpg|png)$/i)){
+      return cb(new Error('please upload a image jpeg or jpg or png'));
+    }
+
+    // cb(new Error('file must be a image'))
+    cb(undefined,true); // silently accept the upload
+    // cb(undefined,false);// silently reject the upload
+  }
+}) 
+
+
+userRouter.post("/users/me/avatar",auth,upload.single('avatar'),async(req,res)=>{
+  const buffer= await sharp(req.file.buffer).resize({width:250,height:250}).png().toBuffer();
+  req.user.avatar=buffer;
+  // req.user.avatar=req.file.buffer;
+  await req.user.save();
+  res.send();
+})
 
 
 // for logout functionality , remove the token from token array 
@@ -244,5 +294,31 @@ userRouter.delete("/users/me",auth, async (req, res) => {
     res.status(500).send(err.message);
   }
 });
+
+userRouter.delete("/users/me/avatar",auth,async (req,res)=>{
+  try{
+    if(!req.user.avatar){
+      return res.status(400).send({message:'avatar already deleted'})
+    }
+    req.user.avatar=undefined;
+    await req.user.save();
+    res.send({message:'avatar deleted successfully'});
+  }catch(err){
+    res.status(500).send({message:'error deleting avatar'});
+  }
+})
+
+userRouter.get("/users/:id/avatar",auth, async (req,res)=>{
+  try{
+    const user=await user.findById(req.params.id);
+    if(!user|| !user.avatar){
+      throw new Error();
+    }
+    res.set({'Content-Type': 'image/png'});
+    res.send(user.avatar);
+  }catch(err){   
+    res.status(404).send({message:'error getting avatar'});
+  }
+})
 
 export default userRouter;

@@ -20,7 +20,24 @@ taskRouter.post('/tasks',auth,async (req,res)=>{
 
 // method 2
 taskRouter.get('/tasks',auth,async (req,res)=>{
-  await  Task.find({owner:req.user._id})
+  const isCompleted=req?.query?.completed==='true';
+  const skip=parseInt(req.query.skip)|| 0;
+  const limit=parseInt(req.query.limit)||10;
+  let taskQuery={owner:req.user._id};
+  let sort={createdAt:-1};
+  
+  if(req.query?.completed!=null){
+  taskQuery={owner:req.user._id,completed:isCompleted};
+  }
+
+  if(req.query?.sortBy!=null){
+      const arr=req.query?.sortBy.split(":");
+      sort[arr[0]]=(arr[1]=='desc')?-1:1;  
+  }
+  await  Task.find(taskQuery)
+  .sort(sort) 
+  .skip(skip)
+  .limit(limit)
   .then(tasks=>res.send(tasks))
   .catch(err=>res.status(500).send(err.message))
 })

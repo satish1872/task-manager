@@ -47,7 +47,14 @@ const userSchema= new mongoose.Schema({
       required:true,
     }
   }],
-});
+  avatar:{
+    type:Buffer
+  }
+},
+{
+  timestamps:true,
+}
+);
 
 /* 
 चलिए इस विर्चुअल मेथड में दिए गए पैरामीटर को टूटकर समझते हैं:
